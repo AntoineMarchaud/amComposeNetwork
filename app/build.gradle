@@ -1,0 +1,67 @@
+plugins {
+    id 'com.android.application'
+    id 'kotlin-android'
+    id 'kotlin-kapt'
+    id 'dagger.hilt.android.plugin'
+}
+
+android {
+    compileSdk Integer.parseInt(compileSdkVersionVar)
+
+    defaultConfig {
+        applicationId applicationIdVar
+        minSdk Integer.parseInt(minSdkVersionVar)
+        targetSdk Integer.parseInt(targerSdkVersionVar)
+        versionCode Integer.parseInt(versionCodeVar)
+        versionName versionNameVar
+
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        vectorDrawables {
+            useSupportLibrary true
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+
+        debug {
+            buildConfigField "String", "ENDPOINT",  "\"http://10.0.2.2:8080/\""
+        }
+
+        release {
+            buildConfigField "String", "ENDPOINT", "\"http://10.0.2.2:8080/\""
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+
+        kotlin.sourceSets.all {
+            languageSettings.optIn("kotlin.RequiresOptIn")
+        }
+    }
+    kotlinOptions {
+        jvmTarget = '1.8'
+    }
+    buildFeatures {
+        compose true
+    }
+    composeOptions {
+        kotlinCompilerExtensionVersion "1.1.0"
+    }
+    packagingOptions {
+        resources {
+            excludes += '/META-INF/{AL2.0,LGPL2.1}'
+        }
+    }
+}
+
+dependencies {
+    implementation libs.bundles.composenetwork
+    kapt libs.moshikapt
+    kapt libs.hiltkapt
+    kapt libs.roomkapt
+}
