@@ -49,18 +49,13 @@ fun NavigateComposable(
     viewModel: NavigateViewModel = viewModel()
 ) {
     val context = LocalContext.current
-    val isConnected by viewModel.isConnected.collectAsState()
-    val folderContent by viewModel.folderContent.collectAsState()
-    val isLoading by viewModel.isLoading.collectAsState()
-    val imageToDisplay by viewModel.imageToDisplay.collectAsState()
-    val lastError by viewModel.lastError.collectAsState()
 
     NavigateScreen(
         modifier = Modifier.fillMaxSize(),
-        isConnected = isConnected,
-        imageToDisplay = imageToDisplay,
-        isLoading = isLoading,
-        folderContent = folderContent,
+        isConnected = viewModel.isConnected,
+        imageToDisplay =  viewModel.imageToDisplay,
+        isLoading = viewModel.isLoading,
+        folderContent = viewModel.currentFolderContent,
         onBackPressed = {
             viewModel.onBack()
         },
@@ -92,7 +87,7 @@ fun NavigateComposable(
     )
 
     // basic error management
-    lastError?.let { error ->
+    viewModel.lastError?.let { error ->
         Toast.makeText(context, stringResource(id = error.message), Toast.LENGTH_LONG).show()
     }
 }

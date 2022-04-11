@@ -2,9 +2,11 @@ package com.amarchaud.composenetwork.ui.screen.navigate
 
 import android.app.Application
 import androidx.annotation.StringRes
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import arrow.core.Either
 import com.amarchaud.composenetwork.R
 import com.amarchaud.composenetwork.domain.usecase.*
 import com.amarchaud.composenetwork.domain.usecase.errors.UseCaseError
@@ -14,8 +16,6 @@ import com.amarchaud.composenetwork.ui.screen.navigate.model.toFolderUiModel
 import com.amarchaud.composenetwork.ui.screen.navigate.model.toUiModel
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -46,22 +46,22 @@ class NavigateViewModel @Inject constructor(
     private var _allContent = listOf<FolderContentUiModel>()
 
     /**
-     * StateFlow
+     * Compose mutableStateOf
      */
-    private val _currentFolderContent = MutableStateFlow<FolderContentUiModel?>(null)
-    val folderContent = _currentFolderContent.asStateFlow()
+    var currentFolderContent by mutableStateOf<FolderContentUiModel?>(null)
+        private set
 
-    private val _isConnected = MutableStateFlow<Boolean?>(null)
-    val isConnected = _isConnected.asStateFlow()
+    var isConnected by mutableStateOf<Boolean?>(null)
+        private set
 
-    private var _isLoading = MutableStateFlow(false)
-    val isLoading = _isLoading.asStateFlow()
+    var isLoading by mutableStateOf(false)
+        private set
 
-    private var _imageToDisplay = MutableStateFlow<ByteArray?>(null)
-    var imageToDisplay = _imageToDisplay.asStateFlow()
+    var imageToDisplay by mutableStateOf<ByteArray?>(null)
+        private set
 
-    private var _lastError = MutableStateFlow<ErrorUi?>(null)
-    var lastError = _lastError.asStateFlow()
+    var lastError by mutableStateOf<ErrorUi?>(null)
+        private set
 
     /**
      * Jobs
@@ -80,11 +80,11 @@ class NavigateViewModel @Inject constructor(
         currentJob?.cancel()
         currentJob = viewModelScope.launch {
 
-            _isLoading.value = true
+            isLoading = true
 
             getFolderContentUseCase.run(currentId).fold(
                 {
-                    _currentFolderContent.value = it.toUiModel(
+                    currentFolderContent = it.toUiModel(
                         title = title,
                         currentId = currentId,
                         parentId = parentId
@@ -100,11 +100,11 @@ class NavigateViewModel @Inject constructor(
                     }
                 },
                 {
-                    _lastError.value = ErrorUi.ErrorGeneric
+                    lastError = ErrorUi.ErrorGeneric
                 }
             )
 
-            _isLoading.value = false
+            isLoading = false
         }
     }
 
@@ -123,7 +123,7 @@ class NavigateViewModel @Inject constructor(
             _allContent.last().let {
 
                 // display cache immediately
-                _currentFolderContent.value = it
+                currentFolderContent = it
 
                 // then refresh view
                 refreshFolder(it.title, it.currentId, it.parentId)
@@ -151,14 +151,14 @@ class NavigateViewModel @Inject constructor(
 
         currentJob?.cancel()
         currentJob = viewModelScope.launch {
-            _isLoading.value = true
+            isLoading = true
 
             downloadByIdUseCase.run(id).fold(
                 {
-                    _imageToDisplay.value = it
+                    imageToDisplay = it
                 },
                 {
-                    _lastError.value = when (it) {
+                    lastError = when (it) {
                         is UseCaseError.BadRequest -> ErrorUi.ErrorItemNotAFile
                         is UseCaseError.ItemNotFound -> ErrorUi.ErrorItemDoesNotExist
                         else -> ErrorUi.ErrorGeneric
@@ -166,7 +166,7 @@ class NavigateViewModel @Inject constructor(
                 }
             )
 
-            _isLoading.value = false
+            isLoading = false
         }
     }
 
@@ -179,12 +179,12 @@ class NavigateViewModel @Inject constructor(
 
         currentJob?.cancel()
         currentJob = viewModelScope.launch {
-            _isLoading.value = true
+            isLoading = true
 
             deleteByIdUseCase.run(id).fold(
                 {
                     // refresh current view
-                    _currentFolderContent.value = _currentFolderContent.value?.apply {
+                    currentFolderContent = currentFolderContent?.apply {
                         this.folders.removeAll { it.id == id }
                         this.files.removeAll { it.id == id }
                     }?.also {
@@ -193,14 +193,14 @@ class NavigateViewModel @Inject constructor(
                     }
                 },
                 {
-                    _lastError.value = when (it) {
+                    lastError = when (it) {
                         is UseCaseError.ItemNotFound -> ErrorUi.ErrorItemDoesNotExist
                         else -> ErrorUi.ErrorGeneric
                     }
                 }
             )
 
-            _isLoading.value = false
+            isLoading = false
         }
     }
 
@@ -208,7 +208,7 @@ class NavigateViewModel @Inject constructor(
      * Callback when a image is closed
      */
     fun closeImage() {
-        _imageToDisplay.value = null
+        imageToDisplay = null
     }
 
     /**
@@ -220,9 +220,9 @@ class NavigateViewModel @Inject constructor(
 
         currentJob?.cancel()
         currentJob = viewModelScope.launch {
-            _isLoading.value = true
+            isLoading = true
 
-            _currentFolderContent.value?.run {
+            currentFolderContent?.run {
 
                 postFolderUseCase.run(
                     folderId = this.currentId,
@@ -230,7 +230,7 @@ class NavigateViewModel @Inject constructor(
                 ).fold(
                     {
                         // refresh
-                        _currentFolderContent.value = _currentFolderContent.value?.apply {
+                        currentFolderContent = currentFolderContent?.apply {
                             this.folders.add(it.toFolderUiModel())
                         }?.also {
                             // refresh cache
@@ -238,16 +238,16 @@ class NavigateViewModel @Inject constructor(
                         }
                     },
                     {
-                        _lastError.value = when (it) {
+                        lastError = when (it) {
                             is UseCaseError.BadRequest -> ErrorUi.ErrorItemAlreadyExist
                             is UseCaseError.ItemNotFound -> ErrorUi.ErrorParentDoesNotExist
                             else -> ErrorUi.ErrorGeneric
                         }
                     }
                 )
-            } ?: run { _lastError.value = ErrorUi.ErrorNoFolder }
+            } ?: run { lastError = ErrorUi.ErrorNoFolder }
 
-            _isLoading.value = false
+            isLoading = false
         }
     }
 
@@ -261,9 +261,9 @@ class NavigateViewModel @Inject constructor(
 
         currentJob?.cancel()
         currentJob = viewModelScope.launch {
-            _isLoading.value = true
+            isLoading = true
 
-            _currentFolderContent.value?.let {
+            currentFolderContent?.let {
 
                 postFileUseCase.run(
                     folderId = it.currentId,
@@ -272,7 +272,7 @@ class NavigateViewModel @Inject constructor(
                 ).fold(
                     {
                         // refresh
-                        _currentFolderContent.value = _currentFolderContent.value?.apply {
+                        currentFolderContent = currentFolderContent?.apply {
                             this.files.add(it.toFileUiModel())
                         }?.also {
                             // refresh cache
@@ -280,7 +280,7 @@ class NavigateViewModel @Inject constructor(
                         }
                     },
                     {
-                        _lastError.value = when (it) {
+                        lastError = when (it) {
                             is UseCaseError.BadRequest -> ErrorUi.ErrorItemAlreadyExist
                             is UseCaseError.ItemNotFound -> ErrorUi.ErrorParentDoesNotExist
                             else -> ErrorUi.ErrorGeneric
@@ -289,14 +289,14 @@ class NavigateViewModel @Inject constructor(
                 )
             }
 
-            _isLoading.value = false
+            isLoading = false
         }
     }
 
     init {
         viewModelScope.launch {
             getMasterFolderUseCase.run().distinctUntilChanged().collect { me ->
-                _isConnected.value = (me != null)
+                isConnected = (me != null)
                 me?.let {
                     refreshFolder(
                         title = it.rootItem.name, // master name
@@ -312,6 +312,6 @@ class NavigateViewModel @Inject constructor(
      * Only reset the error stateFlow. Must be called before each new call
      */
     private fun resetLastError() {
-        _lastError.value = null
+        lastError = null
     }
 }
